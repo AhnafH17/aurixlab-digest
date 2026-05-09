@@ -120,17 +120,22 @@ function buildMessage(data) {
     block += `Active: ${u.activeTasks}   Done: ${u.doneTasks}   Urgent: ${u.urgentTasks.length}   Due soon: ${u.dueSoonTasks.length}   Overdue: ${u.overdueTasks.length}\n`;
     block += `\`\`\``;
 
-    if (u.overdueTasks.length > 0) {
-      block += `⚠️ **Overdue:**\n`;
-      block += `\`\`\`\n${u.overdueTasks.map((t, i) => `${i + 1}. ${t.title} (${t.dueDate})`).join('\n')}\n\`\`\``;
-    }
-    if (u.urgentTasks.length > 0) {
-      block += `🔴 **Urgent:**\n`;
-      block += `\`\`\`\n${u.urgentTasks.map((t, i) => `${i + 1}. ${t.title}`).join('\n')}\n\`\`\``;
-    }
-    if (u.dueSoonTasks.length > 0) {
-      block += `📅 **Due next 5 days:**\n`;
-      block += `\`\`\`\n${u.dueSoonTasks.map((t, i) => `${i + 1}. ${t.title} (${t.dueDate})`).join('\n')}\n\`\`\``;
+    const hasDetails = u.overdueTasks.length > 0 || u.urgentTasks.length > 0 || u.dueSoonTasks.length > 0;
+    if (hasDetails) {
+      let details = '';
+      if (u.overdueTasks.length > 0) {
+        details += `⚠️ Overdue (${u.overdueTasks.length}):\n`;
+        details += u.overdueTasks.map((t, i) => `  ${i + 1}. ${t.title} (${t.dueDate})`).join('\n') + '\n\n';
+      }
+      if (u.urgentTasks.length > 0) {
+        details += `🔴 Urgent (${u.urgentTasks.length}):\n`;
+        details += u.urgentTasks.map((t, i) => `  ${i + 1}. ${t.title}`).join('\n') + '\n\n';
+      }
+      if (u.dueSoonTasks.length > 0) {
+        details += `📅 Due next 5 days (${u.dueSoonTasks.length}):\n`;
+        details += u.dueSoonTasks.map((t, i) => `  ${i + 1}. ${t.title} (${t.dueDate})`).join('\n') + '\n';
+      }
+      block += `\`\`\`\n${details.trim()}\n\`\`\``;
     }
 
     chunks.push(block);
