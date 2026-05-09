@@ -102,6 +102,17 @@ async function fetchWorkloadData() {
 }
 
 // ── Build Discord message from workload data ──────────────────────────────
+const DISCORD_IDS = {
+  'Aaryan': '433593401083166720',
+  'Ahnaf':  '326971404602048514',
+  'Furqan': '350563844319477761',
+  'Mimo':   '588062329468485659',
+  'Ridwan': '858050662294487040',
+  'Sabab':  '720674970518421586',
+  'Abir':   '721440931122774087',
+  'Sadman': '1495096719296303134',
+};
+
 function buildMessage(data) {
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
@@ -115,7 +126,9 @@ function buildMessage(data) {
 
   // One block per person
   for (const u of data.workload) {
-    let block = `\n👤 **${u.name}**\n`;
+    const discordId = DISCORD_IDS[u.name];
+    const mention = discordId ? `<@${discordId}>` : `**${u.name}**`;
+    let block = `\n👤 ${mention}\n`;
     block += `\`\`\`\n`;
     block += `Active: ${u.activeTasks}   Done: ${u.doneTasks}   Urgent: ${u.urgentTasks.length}   Due soon: ${u.dueSoonTasks.length}   Overdue: ${u.overdueTasks.length}\n`;
     block += `\`\`\``;
