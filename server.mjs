@@ -121,13 +121,16 @@ function buildMessage(data) {
     block += `\`\`\``;
 
     if (u.overdueTasks.length > 0) {
-      block += `⚠️ **Overdue:** ${u.overdueTasks.map(t => `${t.title} *(${t.dueDate})*`).join(' · ')}\n`;
+      block += `⚠️ **Overdue:**\n`;
+      block += `\`\`\`\n${u.overdueTasks.map((t, i) => `${i + 1}. ${t.title} (${t.dueDate})`).join('\n')}\n\`\`\``;
     }
     if (u.urgentTasks.length > 0) {
-      block += `🔴 **Urgent:** ${u.urgentTasks.map(t => t.title).join(' · ')}\n`;
+      block += `🔴 **Urgent:**\n`;
+      block += `\`\`\`\n${u.urgentTasks.map((t, i) => `${i + 1}. ${t.title}`).join('\n')}\n\`\`\``;
     }
     if (u.dueSoonTasks.length > 0) {
-      block += `📅 **Due next 5 days:** ${u.dueSoonTasks.map(t => `${t.title} *(${t.dueDate})*`).join(' · ')}\n`;
+      block += `📅 **Due next 5 days:**\n`;
+      block += `\`\`\`\n${u.dueSoonTasks.map((t, i) => `${i + 1}. ${t.title} (${t.dueDate})`).join('\n')}\n\`\`\``;
     }
 
     chunks.push(block);
