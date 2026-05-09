@@ -3,11 +3,11 @@ import pg from 'pg';
 const { Pool } = pg;
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://postgres.jvitloneplaptftlsfnl:AgencyHub2024db@aws-1-ap-south-1.pooler.supabase.com:5432/postgres',
+  connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
 });
 
-const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL || 'https://discord.com/api/webhooks/1499695612684140604/eBlsm5haihG8zXPAreWmoYCR3hUjrMvNKi4eG9Cg7MP9NIEMNVWNJqJmWIBgsjEjYeKI';
+const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL;
 
 const now = new Date();
 const fiveDaysFromNow = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
