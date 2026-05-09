@@ -106,51 +106,38 @@ function buildMessage(data) {
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 
-  let msg = `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-  msg += `📊 **AURIXLAB DAILY BRIEF** | ${dateStr}\n`;
-  msg += `${data.totalActive} active tasks · avg ${data.avgTasks} per member\n`;
-  msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+  const chunks = [];
 
+  // Header
+  let header = `📊 **AURIXLAB DAILY BRIEF** | ${dateStr}\n`;
+  header += `**${data.totalActive} active tasks across the team**\n`;
+  chunks.push(header);
+
+  // One block per person
   for (const u of data.workload) {
-    msg += `👤 **${u.name}** — ${u.activeTasks} active | ${u.doneTasks} done | ${u.workloadPercent}%\n`;
+    let block = `\n👤 **${u.name}**\n`;
+    block += `\`\`\`\n`;
+    block += `Active: ${u.activeTasks}   Done: ${u.doneTasks}   Urgent: ${u.urgentTasks.length}   Due soon: ${u.dueSoonTasks.length}   Overdue: ${u.overdueTasks.length}\n`;
+    block += `\`\`\``;
+
     if (u.overdueTasks.length > 0) {
-      msg += `> ⚠️ **Overdue (${u.overdueTasks.length}):** ${u.overdueTasks.map(t => `${t.title} (${t.dueDate})`).join(', ')}\n`;
+      block += `⚠️ **Overdue:** ${u.overdueTasks.map(t => `${t.title} *(${t.dueDate})*`).join(' · ')}\n`;
     }
     if (u.urgentTasks.length > 0) {
-      msg += `> 🔴 **Urgent (${u.urgentTasks.length}):** ${u.urgentTasks.map(t => t.title).join(', ')}\n`;
+      block += `🔴 **Urgent:** ${u.urgentTasks.map(t => t.title).join(' · ')}\n`;
     }
     if (u.dueSoonTasks.length > 0) {
-      msg += `> 📅 **Due next 5 days (${u.dueSoonTasks.length}):** ${u.dueSoonTasks.map(t => `${t.title} (${t.dueDate})`).join(', ')}\n`;
+      block += `📅 **Due next 5 days:** ${u.dueSoonTasks.map(t => `${t.title} *(${t.dueDate})*`).join(' · ')}\n`;
     }
-    msg += '\n';
+
+    chunks.push(block);
   }
 
-  msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-  const bottlenecks = data.workload.filter(u => u.isBottleneck);
-  if (bottlenecks.length > 0) {
-    for (const b of bottlenecks) {
-      msg += `🚨 **BOTTLENECK: ${b.name} at ${b.workloadPercent}% — 2x above average. Needs immediate redistribution.**\n`;
-    }
-  } else {
-    msg += `✅ **Workload is balanced across the team.**\n`;
-  }
-
-  return msg;
+  return chunks;
 }
 
-// ── Post to Discord (split if over 2000 chars) ────────────────────────────
-async function postToDiscord(message) {
-  const chunks = [];
-  let current = '';
-  for (const line of message.split('\n')) {
-    if ((current + line + '\n').length > 1900) {
-      chunks.push(current);
-      current = '';
-    }
-    current += line + '\n';
-  }
-  if (current.trim()) chunks.push(current);
-
+// ── Post to Discord ───────────────────────────────────────────────────────
+async function postToDiscord(chunks) {
   for (const chunk of chunks) {
     const res = await fetch(DISCORD_WEBHOOK_URL, {
       method: 'POST',
