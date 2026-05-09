@@ -9,7 +9,6 @@ const pool = new Pool({
 });
 
 const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL;
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const CRON_SECRET = process.env.CRON_SECRET || 'aurixlab-secret';
 
 // ── Fetch data from Supabase ───────────────────────────────────────────────
@@ -102,58 +101,41 @@ async function fetchWorkloadData() {
   }
 }
 
-// ── Ask Gemini to write the Discord message ────────────────────────────────
-async function generateWithGemini(data) {
-  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-  const bottlenecks = data.workload.filter(u => u.isBottleneck);
+// ── Build Discord message from workload data ──────────────────────────────
+function buildMessage(data) {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 
-  const prompt = `You are writing a daily team workload digest for a Discord channel. The CEO reads this every morning.
+  let msg = `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+  msg += `📊 **AURIXLAB DAILY BRIEF** | ${dateStr}\n`;
+  msg += `${data.totalActive} active tasks · avg ${data.avgTasks} per member\n`;
+  msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
 
-Write a Discord message using EXACTLY this format and structure. Use Discord markdown only (bold with **, quote blocks with >, no HTML):
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊  **AURIXLAB DAILY BRIEF**  |  ${today}
-     ${data.totalActive} active tasks · avg ${data.avgTasks} per member
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-For each team member below, write one block. Use > for indented lines. List ALL overdue and urgent tasks by name. Be specific and concise.
-
-Here is the raw data:
-${JSON.stringify(data.workload, null, 2)}
-
-Rules:
-- For each person: show 👤 **Name** — X active | X done | X%
-- Show overdue tasks as: > ⚠️ **Overdue (N):** task name (date), task name (date)
-- Show urgent tasks as: > 🔴 **Urgent (N):** task name, task name
-- Show due-soon tasks as: > 📅 **Due next 5 days (N):** task name (date)
-- Skip a category if count is 0
-- After all members, add a separator ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-${bottlenecks.length > 0
-  ? `- End with: 🚨 **BOTTLENECK: ${bottlenecks.map(b => `${b.name} at ${b.workloadPercent}% — 2x above average. Needs immediate redistribution.`).join(' | ')}**`
-  : '- No bottleneck this time, end with: ✅ **Workload is balanced across the team.**'
-}
-- Do not add any commentary, explanation, or text outside the format above.
-- Keep the total message under 1800 characters. If too long, truncate task lists with "...and N more".`;
-
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 1024 },
-      }),
+  for (const u of data.workload) {
+    msg += `👤 **${u.name}** — ${u.activeTasks} active | ${u.doneTasks} done | ${u.workloadPercent}%\n`;
+    if (u.overdueTasks.length > 0) {
+      msg += `> ⚠️ **Overdue (${u.overdueTasks.length}):** ${u.overdueTasks.map(t => `${t.title} (${t.dueDate})`).join(', ')}\n`;
     }
-  );
-
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`Gemini API error: ${response.status} — ${err}`);
+    if (u.urgentTasks.length > 0) {
+      msg += `> 🔴 **Urgent (${u.urgentTasks.length}):** ${u.urgentTasks.map(t => t.title).join(', ')}\n`;
+    }
+    if (u.dueSoonTasks.length > 0) {
+      msg += `> 📅 **Due next 5 days (${u.dueSoonTasks.length}):** ${u.dueSoonTasks.map(t => `${t.title} (${t.dueDate})`).join(', ')}\n`;
+    }
+    msg += '\n';
   }
 
-  const json = await response.json();
-  return json.candidates[0].content.parts[0].text.trim();
+  msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+  const bottlenecks = data.workload.filter(u => u.isBottleneck);
+  if (bottlenecks.length > 0) {
+    for (const b of bottlenecks) {
+      msg += `🚨 **BOTTLENECK: ${b.name} at ${b.workloadPercent}% — 2x above average. Needs immediate redistribution.**\n`;
+    }
+  } else {
+    msg += `✅ **Workload is balanced across the team.**\n`;
+  }
+
+  return msg;
 }
 
 // ── Post to Discord (split if over 2000 chars) ────────────────────────────
@@ -187,7 +169,7 @@ async function postToDiscord(message) {
 async function runDigest() {
   console.log(`[${new Date().toISOString()}] Running digest...`);
   const data = await fetchWorkloadData();
-  const message = await generateWithGemini(data);
+  const message = buildMessage(data);
   await postToDiscord(message);
   console.log(`[${new Date().toISOString()}] Digest posted successfully.`);
 }
