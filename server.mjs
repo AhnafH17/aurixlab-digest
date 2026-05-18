@@ -160,16 +160,30 @@ function buildMessage(data) {
 // ── Post to Discord ───────────────────────────────────────────────────────
 async function postToDiscord(chunks) {
   for (const chunk of chunks) {
-    const res = await fetch(DISCORD_WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: chunk, username: 'Aurixlab Digest' }),
-    });
-    if (!res.ok) {
-      const err = await res.text();
-      throw new Error(`Discord error: ${res.status} — ${err}`);
+    // Split any chunk exceeding 1900 chars on newlines
+    const parts = [];
+    let current = '';
+    for (const line of chunk.split('\n')) {
+      if ((current + line + '\n').length > 1900) {
+        if (current.trim()) parts.push(current);
+        current = '';
+      }
+      current += line + '\n';
     }
-    await new Promise(r => setTimeout(r, 500));
+    if (current.trim()) parts.push(current);
+
+    for (const part of parts) {
+      const res = await fetch(DISCORD_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: part, username: 'Aurixlab Digest' }),
+      });
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(`Discord error: ${res.status} — ${err}`);
+      }
+      await new Promise(r => setTimeout(r, 500));
+    }
   }
 }
 
